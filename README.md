@@ -68,7 +68,7 @@ WSL file system with devcontainer: ~20s
 
 ### SSH fallback
 
-Is automatically used if your IDE version doesn't offer the necessary APIs for "native" dev container connection.
+Is automatically used if your IDE version doesn't offer the necessary APIs for "native" dev container connection, or if access to those APIs is denied.
 
 Requires the extension `jeanp413.open-remote-ssh`. You will be prompted for installation if you don't have it already installed.
 
