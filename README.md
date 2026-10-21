@@ -1,7 +1,7 @@
 # Dev Containers OSS
 
 > [!WARNING]  
-> Starting from VSCodium v140, you have to do "Configure Runtime Arguments" from the command panel and add:`"enable-proposed-api": ["s-h-a-d-o-w.dev-containers-oss"] (Then restart VSCodium.)
+> Starting from VSCodium v140, you have to do "Configure Runtime Arguments" from the command panel and add: `"enable-proposed-api": ["s-h-a-d-o-w.dev-containers-oss"]` (Then restart VSCodium.)
 
 > [!IMPORTANT]
 > **ARCH USERS:** Please consider using VSCodium if you aren't. I'm happy to accept PRs for "Code - OSS" support if the changes needed are minimal. It's also possible that changes needed would have to be made in the [Arch patches](https://gitlab.archlinux.org/archlinux/packaging/packages/code).
