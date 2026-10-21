@@ -1,6 +1,7 @@
 *.trigger
 *.tsbuildinfo
 *.vsix
+.env
 
 dist/
 node_modules/

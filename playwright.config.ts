@@ -1,4 +1,11 @@
 import { defineConfig } from "@playwright/test";
+import { loadEnvFile } from "node:process";
+
+try {
+  loadEnvFile();
+} catch {
+  // No .env on CI
+}
 
 // Might be set, which would make the launched Electron app run as plain Node.
 delete process.env["ELECTRON_RUN_AS_NODE"];

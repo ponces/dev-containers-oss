@@ -1,3 +1,4 @@
+// oxlint-disable no-use-before-define
 /**
  * Copyright (c) Microsoft Corporation.
  *
@@ -17,27 +18,36 @@ import { test as base, type Page, _electron } from "@playwright/test";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
-import { downloadAndUnzipCodium } from "./downloadAndUnzipCodium.ts";
+import {
+  downloadAndUnzipCodium,
+  ReleaseKey,
+} from "./downloadAndUnzipCodium.ts";
 
 export { expect } from "@playwright/test";
 
 type TestFixtures = {
   createTempDir: () => Promise<string>;
-  workbox: Page;
+  latest: Page;
+  firstSupported: Page;
 };
 
 const isWindows = process.platform === "win32";
 
-export const test = base.extend<TestFixtures>({
-  workbox: async ({ createTempDir }, use) => {
+function createWorkbox(which: ReleaseKey, additionalArgs: string[] = []) {
+  return async (
+    { createTempDir }: TestFixtures,
+    use: (r: Page) => Promise<void>,
+  ) => {
     const defaultCachePath = await createTempDir();
-    const codiumPath = await downloadAndUnzipCodium();
+    const codiumPath = await downloadAndUnzipCodium(which);
     console.log(`Using VSCodium from ${codiumPath}`);
 
     const electronApp = await _electron.launch({
       executablePath: codiumPath,
       args: [
-        // Stolen from https://github.com/microsoft/vscode-test/blob/0ec222ef170e102244569064a12898fb203e5bb7/lib/runTest.ts#L126-L160
+        ...additionalArgs,
+
+        // From https://github.com/microsoft/vscode-test/blob/0ec222ef170e102244569064a12898fb203e5bb7/lib/runTest.ts#L126-L160
         // https://github.com/microsoft/vscode/issues/84238
         "--no-sandbox",
         // https://github.com/microsoft/vscode-test/issues/221
@@ -72,13 +82,23 @@ export const test = base.extend<TestFixtures>({
       path: tracePath,
       contentType: "application/zip",
     });
+
     await electronApp.close();
+
     const logPath = path.join(defaultCachePath, "user-data");
     if (fs.existsSync(logPath)) {
       const logOutputPath = test.info().outputPath("vscode-logs");
       await fs.promises.cp(logPath, logOutputPath, { recursive: true });
     }
-  },
+  };
+}
+
+export const test = base.extend<TestFixtures>({
+  firstSupported: createWorkbox("firstSupported"),
+  latest: createWorkbox("latest", [
+    "--enable-proposed-api=s-h-a-d-o-w.dev-containers-oss",
+  ]),
+
   // oxlint-disable-next-line no-empty-pattern
   createTempDir: async ({}, use) => {
     const tempDirs: string[] = [];

@@ -9,10 +9,14 @@ import ky, { type Options as KyOptions } from "ky";
 
 const execFileAsync = promisify(execFile);
 
+export const releases = {
+  latest: `https://api.github.com/repos/VSCodium/VSCodium/releases/latest`,
+  firstSupported: `https://api.github.com/repos/VSCodium/VSCodium/releases/tags/1.126.04524`,
+};
+export type ReleaseKey = keyof typeof releases;
+
 const isWindows = process.platform === "win32";
 const isDarwin = process.platform === "darwin";
-const GITHUB_API_LATEST_RELEASE =
-  "https://api.github.com/repos/VSCodium/VSCodium/releases/latest";
 
 type GitHubReleaseAsset = {
   name: string;
@@ -57,15 +61,13 @@ function getKyOptions(headers?: Record<string, string>): KyOptions {
   };
 }
 
-async function fetchLatestRelease() {
+async function fetchRelease(url: string) {
   const options = getKyOptions({
     Accept: "application/vnd.github+json",
   });
 
   try {
-    const response = (await ky
-      .get(GITHUB_API_LATEST_RELEASE, options)
-      .json()) as GitHubRelease;
+    const response = (await ky.get(url, options).json()) as GitHubRelease;
     return response;
   } catch (error) {
     throw new Error(`Failed to fetch latest VSCodium release: ${error}`, {
@@ -126,12 +128,16 @@ async function pathExists(target: string): Promise<boolean> {
   }
 }
 
-export async function downloadAndUnzipCodium(): Promise<string> {
+export async function downloadAndUnzipCodium(
+  which: ReleaseKey = "latest",
+): Promise<string> {
+  console.log(`Downloading VSCodium release: ${which}`);
   const platformId = getPlatformIdentifier();
-  const release = await fetchLatestRelease();
+  const release = await fetchRelease(releases[which]);
   const asset = selectAsset(release, platformId);
 
-  const workDir = path.join(tmpdir(), "vscodium-cache");
+  const workDir = path.join(tmpdir(), "vscodium-cache-" + which);
+  console.log(`Downloading VSCodium release to: ${workDir}`);
   const archivePath = path.join(workDir, asset.name);
   const extractDir = path.join(
     workDir,
