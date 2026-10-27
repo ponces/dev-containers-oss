@@ -13,7 +13,12 @@ import {
 } from "vscode";
 import { devcontainerUp, readMergedCustomizations } from "./devContainerCli.ts";
 import type { BuildOptions } from "./types/types.ts";
-import { getWorkspaceFolder } from "./utilities.ts";
+import {
+  getConfigUri,
+  getWorkspaceFolder,
+  hasDevcontainerConfig,
+  updateDevcontainerContext,
+} from "./utilities.ts";
 import { getLog, resetLog, setDevMode, withLogTerminal } from "./log.ts";
 import {
   getConnectedHostAlias,
@@ -28,9 +33,13 @@ import {
   registerRemoteResolver,
 } from "./runtimes/native.ts";
 import { EXTENSION_ID } from "./constants.ts";
+import {
+  DONT_PROMPT_REOPEN_KEY,
+  promptReopenInContainerIfConfigured,
+  promptSshFallbackInstructions,
+} from "./prompts.ts";
 
 const PENDING_REOPEN_KEY = `${EXTENSION_ID}.pendingReopen`;
-const DONT_PROMPT_REOPEN_KEY = `${EXTENSION_ID}.dontPromptReopen`;
 
 type PendingReopen = {
   localFolder: string;
@@ -38,10 +47,6 @@ type PendingReopen = {
   noCache?: boolean;
   native?: boolean;
 };
-
-function getConfigUri(ws: WorkspaceFolder) {
-  return Uri.joinPath(ws.uri, ".devcontainer", "devcontainer.json");
-}
 
 // The host-side folder of the native (managed) container this window is connected to, if
 // any. The local path is encoded straight into the authority, so no lookup is needed.
@@ -107,33 +112,10 @@ export function activate(context: ExtensionContext) {
       getLog().appendLine(
         `Native container connection unavailable; falling back to SSH: ${message}`,
       );
-      getLog().appendLine(
-        `To enable native connections, restart your IDE with --enable-proposed-api ${EXTENSION_ID}.`,
-      );
+      void promptSshFallbackInstructions(context);
     }
   }
 
-  async function hasDevcontainerConfig(ws: WorkspaceFolder | undefined) {
-    if (!ws) {
-      return false;
-    }
-    try {
-      // Resolve the config via the VS Code filesystem API rather than Node's fs: When we're "running" in the dev container, the extension is still on the host and fs.existsSync would run on the local machine.
-      await workspace.fs.stat(getConfigUri(ws));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  async function updateDevcontainerContext() {
-    const has = await hasDevcontainerConfig(getWorkspaceFolder());
-    await commands.executeCommand(
-      "setContext",
-      `${EXTENSION_ID}.hasConfig`,
-      has,
-    );
-  }
   // Initialize context
   void updateDevcontainerContext();
 
@@ -304,30 +286,7 @@ export function activate(context: ExtensionContext) {
   const isReopening = Boolean(
     context.globalState.get<PendingReopen>(PENDING_REOPEN_KEY),
   );
-  async function promptReopenInContainerIfConfigured() {
-    if (
-      env.remoteName ||
-      isReopening ||
-      context.workspaceState.get<boolean>(DONT_PROMPT_REOPEN_KEY) ||
-      !(await hasDevcontainerConfig(getWorkspaceFolder()))
-    ) {
-      return;
-    }
-
-    const reopen = "Reopen in Container";
-    const dontShowAgain = "Don't Show Again";
-    const choice = await window.showInformationMessage(
-      "This workspace contains a devcontainer.json file. Would you like to reopen it inside a container?",
-      reopen,
-      dontShowAgain,
-    );
-    if (choice === reopen) {
-      await commands.executeCommand(`${EXTENSION_ID}.openFolderInDevcontainer`);
-    } else if (choice === dontShowAgain) {
-      await context.workspaceState.update(DONT_PROMPT_REOPEN_KEY, true);
-    }
-  }
-  void promptReopenInContainerIfConfigured();
+  void promptReopenInContainerIfConfigured(context, isReopening);
 
   void resumePendingReopenIfAny();
 
