@@ -33,9 +33,7 @@ export async function promptReopenInContainerIfConfigured(
 }
 
 export async function promptSshFallbackInstructions(context: ExtensionContext) {
-  if (
-    context.workspaceState.get<boolean>(DONT_PROMPT_SSH_FALLBACK_INSTRUCTIONS)
-  ) {
+  if (context.globalState.get<boolean>(DONT_PROMPT_SSH_FALLBACK_INSTRUCTIONS)) {
     return;
   }
 
@@ -50,7 +48,7 @@ export async function promptSshFallbackInstructions(context: ExtensionContext) {
   if (choice === goToInstructions) {
     await commands.executeCommand("extension.open", context.extension.id);
   } else if (choice === dontShowAgain) {
-    await context.workspaceState.update(
+    await context.globalState.update(
       DONT_PROMPT_SSH_FALLBACK_INSTRUCTIONS,
       true,
     );
